@@ -10,10 +10,24 @@ export default function Signup() {
     name: "",
     email: "",
     password: "",
+    confirmPassword: "",
     age: "",
   });
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // ✅ Real-time password match state
+  const passwordsMatch =
+    form.password &&
+    form.confirmPassword &&
+    form.password === form.confirmPassword;
+
+  const passwordsMismatch =
+    form.confirmPassword &&
+    form.password !== form.confirmPassword;
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -22,10 +36,18 @@ export default function Signup() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
+    if (!passwordsMatch) {
+      setError("Passwords do not match");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const user = await signup(form);
+      const { confirmPassword, ...payload } = form;
+      const user = await signup(payload);
+
       if (user.is_setup_completed) {
         navigate("/dashboard");
       } else {
@@ -43,6 +65,7 @@ export default function Signup() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-white">
       <div className="w-full max-w-md bg-white rounded-3xl shadow-lg border p-8">
+
         {/* Icon */}
         <div className="flex justify-center mb-4">
           <div className="w-14 h-14 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-2xl">
@@ -73,71 +96,110 @@ export default function Signup() {
 
         {/* Error */}
         {error && (
-          <p className="bg-red-100 text-red-700 p-2 rounded mb-4 text-sm">
+          <p className="bg-red-100 text-red-700 p-2 rounded mb-4 text-sm text-center">
             {error}
           </p>
         )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-sm text-gray-600 block mb-1">
-              Full Name
-            </label>
-            <input
-              name="name"
-              placeholder="Your name"
-              required
-              onChange={handleChange}
-              className="w-full px-4 py-3 rounded-xl bg-purple-50 border border-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-400"
-            />
-          </div>
 
-          <div>
-            <label className="text-sm text-gray-600 block mb-1">
-              Email
-            </label>
-            <input
-              name="email"
-              type="email"
-              placeholder="you@example.com"
-              required
-              onChange={handleChange}
-              className="w-full px-4 py-3 rounded-xl bg-purple-50 border border-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-400"
-            />
-          </div>
+          {/* Name */}
+          <input
+            name="name"
+            placeholder="Full name"
+            required
+            disabled={loading}
+            onChange={handleChange}
+            className="w-full px-4 py-3 rounded-xl bg-purple-50 border border-purple-100 focus:ring-2 focus:ring-purple-400"
+          />
 
-          <div>
-            <label className="text-sm text-gray-600 block mb-1">
-              Password
-            </label>
+          {/* Email */}
+          <input
+            name="email"
+            type="email"
+            placeholder="Email address"
+            required
+            disabled={loading}
+            onChange={handleChange}
+            className="w-full px-4 py-3 rounded-xl bg-purple-50 border border-purple-100 focus:ring-2 focus:ring-purple-400"
+          />
+
+          {/* Password */}
+          <div className="relative">
             <input
               name="password"
-              type="password"
-              placeholder="••••••••"
+              type={showPassword ? "text" : "password"}
+              placeholder="Password"
               required
+              disabled={loading}
               onChange={handleChange}
-              className="w-full px-4 py-3 rounded-xl bg-purple-50 border border-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              className="w-full px-4 py-3 pr-12 rounded-xl bg-purple-50 border border-purple-100 focus:ring-2 focus:ring-purple-400"
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500"
+            >
+              {showPassword ? "🙈" : "👁️"}
+            </button>
           </div>
 
-          <div>
-            <label className="text-sm text-gray-600 block mb-1">
-              Age
-            </label>
+          {/* Confirm Password */}
+          <div className="relative">
             <input
-              name="age"
-              type="number"
-              placeholder="Your age"
+              name="confirmPassword"
+              type={showConfirmPassword ? "text" : "password"}
+              placeholder="Confirm password"
               required
+              disabled={loading}
               onChange={handleChange}
-              className="w-full px-4 py-3 rounded-xl bg-purple-50 border border-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              className={`w-full px-4 py-3 pr-12 rounded-xl bg-purple-50 border ${
+                passwordsMatch
+                  ? "border-green-400"
+                  : passwordsMismatch
+                  ? "border-red-400"
+                  : "border-purple-100"
+              } focus:ring-2 focus:ring-purple-400`}
             />
+            <button
+              type="button"
+              onClick={() =>
+                setShowConfirmPassword(!showConfirmPassword)
+              }
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500"
+            >
+              {showConfirmPassword ? "🙈" : "👁️"}
+            </button>
           </div>
 
-          <button
+          {/* Live Match Message */}
+          {passwordsMatch && (
+            <p className="text-green-600 text-sm">
+              ✔ Passwords match
+            </p>
+          )}
+          {passwordsMismatch && (
+            <p className="text-red-600 text-sm">
+              ✖ Passwords do not match
+            </p>
+          )}
+
+          {/* Age */}
+          <input
+            name="age"
+            type="number"
+            placeholder="Age"
+            required
             disabled={loading}
-            className="w-full bg-purple-600 text-white py-3 rounded-xl hover:bg-purple-700 transition disabled:opacity-60"
+            onChange={handleChange}
+            className="w-full px-4 py-3 rounded-xl bg-purple-50 border border-purple-100 focus:ring-2 focus:ring-purple-400"
+          />
+
+          {/* Submit */}
+          <button
+            disabled={loading || !passwordsMatch}
+            className="w-full bg-purple-600 text-white py-3 rounded-xl hover:bg-purple-700 transition disabled:opacity-50"
           >
             {loading ? "Creating account..." : "Sign Up"}
           </button>

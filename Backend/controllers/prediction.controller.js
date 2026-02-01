@@ -3,11 +3,13 @@ import pool from "../config/db.js";
 import { predictNextCycle } from "../services/prediction.service.js";
 import { calculatePhases } from "../utils/phase.utils.js";
 
+const todayDate = () => new Date().toISOString().split("T")[0];
+
 export const getPrediction = async (req, res) => {
   const userId = req.user.id;
-  const today = new Date();
+  const today = todayDate();
 
-  // 1️⃣ ACTIVE PERIOD (highest priority)
+  // 1️⃣ ACTIVE PERIOD
   const active = await pool.query(
     `SELECT *
      FROM cycle_history
@@ -39,15 +41,14 @@ export const getPrediction = async (req, res) => {
 
   // 3️⃣ CLEAN OLD PREDICTIONS
   await pool.query(
-    `UPDATE cycle_history
-     SET is_predicted=false
+    `DELETE FROM cycle_history
      WHERE user_id=$1
        AND is_predicted=true
        AND cycle_end < $2`,
     [userId, today]
   );
 
-  // 4️⃣ CREATE NEW PREDICTION IF NEEDED
+  // 4️⃣ CREATE NEW PREDICTION
   if (!cycle) {
     const prediction = await predictNextCycle(userId);
 

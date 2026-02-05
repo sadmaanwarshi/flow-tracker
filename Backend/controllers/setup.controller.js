@@ -1,11 +1,11 @@
-// controllers/setup.controller.js
 import pool from "../config/db.js";
+import { predictNextCycle } from "../services/prediction.service.js";
 
 export const setupCycle = async (req, res) => {
   const userId = req.user.id;
   const { lastPeriodDate, cycleLength, periodLength } = req.body;
 
-  // Allow setup only once
+  // Prevent double setup
   const exists = await pool.query(
     "SELECT 1 FROM menstrual_profiles WHERE user_id=$1",
     [userId]
@@ -23,7 +23,7 @@ export const setupCycle = async (req, res) => {
     [userId, lastPeriodDate, cycleLength, periodLength]
   );
 
-  // ✅ FIRST CONFIRMED PERIOD (not prediction)
+  // 1️⃣ Insert LAST CONFIRMED CYCLE
   const cycleStart = new Date(lastPeriodDate);
   const cycleEnd = new Date(lastPeriodDate);
   cycleEnd.setDate(cycleEnd.getDate() + periodLength - 1);
@@ -35,7 +35,23 @@ export const setupCycle = async (req, res) => {
     [userId, cycleStart, cycleEnd, cycleLength, periodLength]
   );
 
-  // Init confidence
+  // 2️⃣ CREATE FIRST PREDICTED CYCLE (IMPORTANT)
+  const prediction = await predictNextCycle(userId);
+
+  await pool.query(
+    `INSERT INTO cycle_history
+     (user_id, cycle_start, cycle_end, cycle_length, period_length, is_predicted, needs_verification)
+     VALUES ($1,$2,$3,$4,$5,true,true)`,
+    [
+      userId,
+      prediction.nextStart,
+      prediction.nextEnd,
+      prediction.cycleLength,
+      prediction.periodLength,
+    ]
+  );
+
+  // 3️⃣ Init confidence
   await pool.query(
     "INSERT INTO confidence_scores (user_id) VALUES ($1)",
     [userId]

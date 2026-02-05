@@ -25,6 +25,7 @@ app.use("/api/calendar", calendarRoutes);
 app.use("/api/history", historyRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 
+
 app.get("/", (req, res) => {
   res.send("🚀 Period Tracker API Running");
 });

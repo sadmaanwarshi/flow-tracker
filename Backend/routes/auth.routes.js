@@ -8,7 +8,7 @@ const router = express.Router();
 
 /* Signup */
 router.post("/signup", async (req, res) => {
-  // 👉 1. Wrap in try...catch to prevent server crashes
+  
   try {
     const { name, email, password, age } = req.body;
 
@@ -30,12 +30,10 @@ router.post("/signup", async (req, res) => {
     res.status(201).json({ token, user });
 
   } catch (error) {
-    // 👉 2. Catch the specific PostgreSQL "Duplicate Key" error
     if (error.code === '23505') {
       return res.status(409).json({ message: "An account with this email already exists." });
     }
 
-    // 👉 3. Catch any other unexpected database crashes safely
     console.error("Signup Route Error:", error);
     res.status(500).json({ message: "An unexpected error occurred. Please try again." });
   }
@@ -43,7 +41,6 @@ router.post("/signup", async (req, res) => {
 
 /* Login */
 router.post("/login", async (req, res) => {
-  // 👉 Wrap login in try...catch as well
   try {
     const { email, password } = req.body;
 

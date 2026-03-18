@@ -8,53 +8,77 @@ const router = express.Router();
 
 /* Signup */
 router.post("/signup", async (req, res) => {
-  const { name, email, password, age } = req.body;
+  // 👉 1. Wrap in try...catch to prevent server crashes
+  try {
+    const { name, email, password, age } = req.body;
 
-  const hashed = await bcrypt.hash(password, 10);
+    const hashed = await bcrypt.hash(password, 10);
 
-  const result = await pool.query(
-    `INSERT INTO users (name, email, password_hash, age)
-     VALUES ($1,$2,$3,$4)
-     RETURNING id, name, email, is_setup_completed`,
-    [name, email, hashed, age]
-  );
+    const result = await pool.query(
+      `INSERT INTO users (name, email, password_hash, age)
+       VALUES ($1,$2,$3,$4)
+       RETURNING id, name, email, is_setup_completed`,
+      [name, email, hashed, age]
+    );
 
-  const user = result.rows[0];
+    const user = result.rows[0];
 
-  const token = jwt.sign(user, process.env.JWT_SECRET, {
-    expiresIn: "7d",
-  });
+    const token = jwt.sign(user, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
 
-  res.json({ token, user });
+    res.status(201).json({ token, user });
+
+  } catch (error) {
+    // 👉 2. Catch the specific PostgreSQL "Duplicate Key" error
+    if (error.code === '23505') {
+      return res.status(409).json({ message: "An account with this email already exists." });
+    }
+
+    // 👉 3. Catch any other unexpected database crashes safely
+    console.error("Signup Route Error:", error);
+    res.status(500).json({ message: "An unexpected error occurred. Please try again." });
+  }
 });
 
 /* Login */
 router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
+  // 👉 Wrap login in try...catch as well
+  try {
+    const { email, password } = req.body;
 
-  const result = await pool.query(
-    "SELECT * FROM users WHERE email=$1",
-    [email]
-  );
+    const result = await pool.query(
+      "SELECT * FROM users WHERE email=$1",
+      [email]
+    );
 
-  const user = result.rows[0];
-  if (!user) return res.status(400).json({ message: "Invalid credentials" });
+    const user = result.rows[0];
+    
+    // Security best practice: Same message for wrong email or wrong password
+    const securityMessage = "Invalid credentials. Please check your email and password.";
 
-  const valid = await bcrypt.compare(password, user.password_hash);
-  if (!valid) return res.status(400).json({ message: "Invalid credentials" });
+    if (!user) return res.status(401).json({ message: securityMessage });
 
-  const payload = {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    is_setup_completed: user.is_setup_completed,
-  };
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) return res.status(401).json({ message: securityMessage });
 
-  const token = jwt.sign(payload, process.env.JWT_SECRET, {
-    expiresIn: "7d",
-  });
+    const payload = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      is_setup_completed: user.is_setup_completed,
+    };
 
-  res.json({ token, user: payload });
+    const token = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
+
+    res.json({ token, user: payload });
+
+  } catch (error) {
+    console.error("Login Route Error:", error);
+    res.status(500).json({ message: "An unexpected error occurred during login." });
+  }
 });
 
 /* Restore user on refresh */
